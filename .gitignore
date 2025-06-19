@@ -46,3 +46,4 @@ secrets.json
 
 # Ignore test databases or backups
 dump.rdb
+*.env

@@ -1,0 +1,85 @@
+version: 1
+disable_existing_loggers: False # Mevcut logger'ları devre dışı bırakma
+
+filters:
+  correlation_filter:
+    '()': src.core.correlation.logger_filter.CorrelationIdLogFilter
+
+formatters:
+  standard:
+    format: '%(asctime)s.%(msecs)03d [%(levelname)-8s] [X-Correlation-ID: %(correlation_id)s] [%(name)s] [%(threadName)s:%(thread)d] [%(module)s:%(lineno)d] - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+  simple_console:
+    format: '[%(levelname)-8s] [X-Correlation-ID: %(correlation_id)s] [%(name)s] - %(message)s'
+  access_formatter: # Uvicorn access logları için özel format
+    '()': uvicorn.logging.AccessFormatter # ÖNEMLİ: Uvicorn'un kendi formatter'ını kullan
+    format: '%(asctime)s.%(msecs)03d [%(levelname)-8s] [X-Correlation-ID: %(correlation_id)s] [%(name)s] [CLIENT:%(client_addr)s] - "%(request_line)s" %(status_code)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: simple_console
+    level: INFO # Ortam değişkeni kullanamayız, burada sabit bir değer veriyoruz
+    filters: [correlation_filter]
+    stream: ext://sys.stdout
+  file_app: # Genel uygulama logları için
+    class: logging.handlers.RotatingFileHandler
+    formatter: standard
+    filename: ./logs/app.log # Projenin kök dizinine göreceli yol
+    maxBytes: 10485760 # 10 MB
+    backupCount: 5
+    encoding: 'utf-8'
+    level: INFO # Ortam değişkeni kullanamayız
+    filters: [correlation_filter]
+  file_error: # Sadece error ve critical logları için
+    class: logging.handlers.RotatingFileHandler
+    formatter: standard
+    filename: ./logs/error.log # Projenin kök dizinine göreceli yol
+    maxBytes: 5242880 # 5 MB
+    backupCount: 3
+    encoding: 'utf-8'
+    level: ERROR
+    filters: [correlation_filter]
+  file_access_uvicorn: # Uvicorn erişim logları için
+    class: logging.handlers.RotatingFileHandler
+    formatter: access_formatter
+    filename: ./logs/access.log # Projenin kök dizinine göreceli yol
+    maxBytes: 10485760 # 10 MB
+    backupCount: 5
+    encoding: 'utf-8'
+    level: INFO # Ortam değişkeni kullanamayız
+    filters: [correlation_filter]
+
+loggers:
+  src: # Kendi projenizin ana logger'ı
+    handlers: [console, file_app, file_error]
+    level: INFO
+    propagate: no
+  sqlalchemy.engine:
+    handlers: [console, file_app]
+    level: WARNING
+    propagate: no
+  sqlalchemy:
+    handlers: [console, file_app]
+    level: WARNING
+    propagate: no
+  aio_pika:
+    handlers: [console, file_app]
+    level: WARNING
+    propagate: no
+  uvicorn: # Uvicorn'un genel logları
+    handlers: [console, file_app]
+    level: INFO
+    propagate: no
+  uvicorn.error: # Uvicorn'un hata logları
+    handlers: [console, file_error, file_app]
+    level: INFO
+    propagate: no
+  uvicorn.access: # Uvicorn'un erişim logları
+    handlers: [console, file_access_uvicorn]
+    level: INFO
+    propagate: no
+  '': # Root logger (varsayılan olarak tüm diğer loglar buraya düşer)
+    handlers: [console, file_app, file_error]
+    level: INFO

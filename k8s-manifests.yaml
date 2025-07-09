@@ -1,0 +1,241 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wallet-secrets
+  namespace: default
+stringData:
+  JWT_SECRET: supersecret
+  WALLET_AES_KEY: 32byteslongsecretkeyforaes256!!
+  POSTGRES_PASSWORD: wallet_pass
+  RABBITMQ_DEFAULT_PASS: rabbit
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wallet-config
+  namespace: default
+  labels:
+    app: wallet
+  
+data:
+  POSTGRES_DB: wallet_db
+  POSTGRES_USER: wallet_user
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  RABBITMQ_DEFAULT_USER: rabbit
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: "5672"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  JWT_ALGORITHM: HS256
+  ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+  REFRESH_TOKEN_EXPIRE_DAYS: "7"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: wallet-config
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: wallet-config
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wallet-secrets
+              key: POSTGRES_PASSWORD
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: pgdata
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: pgdata
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: redisdata
+          mountPath: /data
+      volumes:
+      - name: redisdata
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  ports:
+  - port: 6379
+    targetPort: 6379
+  selector:
+    app: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+spec:
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3-management
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          valueFrom:
+            configMapKeyRef:
+              name: wallet-config
+              key: RABBITMQ_DEFAULT_USER
+        - name: RABBITMQ_DEFAULT_PASS
+          valueFrom:
+            secretKeyRef:
+              name: wallet-secrets
+              key: RABBITMQ_DEFAULT_PASS
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+        volumeMounts:
+        - name: rabbitmqdata
+          mountPath: /var/lib/rabbitmq
+      volumes:
+      - name: rabbitmqdata
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+spec:
+  ports:
+  - port: 5672
+    targetPort: 5672
+  - port: 15672
+    targetPort: 15672
+  selector:
+    app: rabbitmq
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+spec:
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+      - name: auth-service
+        image: yourrepo/auth-service:latest # Replace with your image
+        envFrom:
+        - configMapRef:
+            name: wallet-config
+        - secretRef:
+            name: wallet-secrets
+        ports:
+        - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+spec:
+  ports:
+  - port: 8001
+    targetPort: 8000
+  selector:
+    app: auth-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+spec:
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: yourrepo/user-service:latest # Replace with your image
+        envFrom:
+        - configMapRef:
+            name: wallet-config
+        - secretRef:
+            name: wallet-secrets
+        ports:
+        - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  ports:
+  - port: 8002
+    targetPort: 8000
+  selector:
+    app: user-service 

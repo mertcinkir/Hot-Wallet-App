@@ -49,6 +49,10 @@ services:
       POSTGRES_PORT: 5432
       RABBITMQ_URL: amqp://rabbit:rabbit@rabbitmq:5672/
       WALLET_AES_KEY: "32byteslongsecretkeyforaes256!!"
+      PRIMARY_HOST: postgres
+      PRIMARY_NAME: wallet_db
+      PRIMARY_USERNAME: wallet_user
+      PRIMARY_PASSWORD: wallet_pass
     depends_on:
       - postgres
       - redis
@@ -70,6 +74,10 @@ services:
       POSTGRES_PORT: 5432
       RABBITMQ_URL: amqp://rabbit:rabbit@rabbitmq:5672/
       WALLET_AES_KEY: "32byteslongsecretkeyforaes256!!"
+      PRIMARY_HOST: postgres
+      PRIMARY_NAME: wallet_db
+      PRIMARY_USERNAME: wallet_user
+      PRIMARY_PASSWORD: wallet_pass
     depends_on:
       - postgres
       - redis

@@ -19,6 +19,9 @@ from src.core.events.events import (
 )
 from src.adapters.database.aes_crypto import AESCipher
 from typing import List
+from src.service_layer.messagebus import MessageBus
+from src.core.correlation.middleware import CorrelationIdMiddleware
+from src.core.exceptions.exception_handlers import EXCEPTION_HANDLERS
 
 # Import your config, bootstrap, and domain modules as in the template
 # from src import config
@@ -93,7 +96,7 @@ app.add_middleware(CorrelationIdMiddleware)
 for exc, handler in EXCEPTION_HANDLERS.items():
     app.add_exception_handler(exc, handler)
 
-# --- Profile Endpoints ---
+# Profile Endpoints 
 @app.get("/users/me", response_model=UserProfileResponse)
 async def get_profile(current_user: str = Depends(get_current_user), messagebus: MessageBus = Depends(get_messagebus)):
     # Fetch user profile from DB (pseudo-code, adapt to your repo)

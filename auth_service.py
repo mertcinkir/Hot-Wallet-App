@@ -19,6 +19,8 @@ from fastapi import HTTPException, Body, Security
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Optional
 from functools import wraps
+from dotenv import load_dotenv
+load_dotenv()
 
 logger = logging.getLogger("auth_service")
 
